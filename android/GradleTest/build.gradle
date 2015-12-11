@@ -1,0 +1,176 @@
+import java.util.regex.Pattern
+
+apply plugin: 'com.android.model.application'
+model {
+    android {
+        compileSdkVersion = 23
+        buildToolsVersion = "23.0.1"
+
+        defaultConfig.with {
+            applicationId = "com.emergentvr.gradletest"
+            minSdkVersion.apiLevel = 19
+            targetSdkVersion.apiLevel = 23
+            versionCode = 1
+            versionName = "1.0"
+            buildConfigFields.with {
+                create() {
+                    type = "int"
+                    name = "VALUE"
+                    value = "1"
+                }
+            }
+            /*testPackageName = "com.emergentvr.gradletest.test"
+            testInstrumentationRunner = "android.test.InstrumentationTestRunner"
+            testHandleProfiling = true
+            testFunctionalTest = true*/
+        }
+    }
+    android.ndk {
+        moduleName = "EmergentVR"
+        toolchain = "clang"
+        toolchainVersion = "3.6"
+        // Note that CFlags has a capital C, which is inconsistent with
+        // the naming convention of other properties.  This is a
+        // technical limitation that will be resolved
+        CFlags += "-DCUSTOM_DEFINE"
+        cppFlags += "-DOS_ANDROID"
+        cppFlags += "-D__ANDROID__"
+        cppFlags += "-DANDROID"
+        cppFlags += "-DES2"
+        cppFlags += "-DES2"
+        cppFlags += "-I"+ project(':GradleTest').getProjectDir() + "/../../native"
+        cppFlags += "-I"+ project(':GradleTest').getProjectDir() + "/../../third-party/opencv_android/sdk/native/jni/include"
+
+
+        cppFlags += "-std=c++14"
+        cppFlags += "-fexceptions"
+        cppFlags += "-frtti"
+        cppFlags += "-fsigned-char"
+        cppFlags += "-fPIC"
+        ldLibs += "log"
+        ldLibs += "EGL"
+        ldLibs += "GLESv2"
+        ldLibs += "atomic"
+        ldLibs += "z"
+
+        stl = "gnustl_shared"
+        //stl = "stlport_shared" <-- currently no thread header
+        //stl = "c++_shared" <-- clang
+    }
+    android.buildTypes {
+        debug {
+            debuggable = true
+            ndk.with {
+                debuggable = true
+            }
+        }
+        release {
+            debuggable = false
+            minifyEnabled = true
+            proguardFiles  += file('proguard-rules.pro')
+            ndk.with {
+                debuggable = false
+            }
+        }
+    }
+    def opencv_modules = ["shape", "stitching", "objdetect", "superres", "videostab", "calib3d", "features2d", "highgui", "videoio", "imgcodecs", "video", "photo", "ml", "imgproc", "flann", "core", "hal"]
+    def opencv_third_parties = [ "liblibjpeg", "liblibpng", "liblibtiff", "liblibwebp", "liblibjasper", "libIlmImf", "libtbb"]
+    android.productFlavors {
+        create("armv7") {
+            ndk.with {
+
+                abiFilters += "armeabi-v7a"
+                println "*** building for armv7: " + abiFilters
+                abiFilters.each { targetAbi ->
+                    opencv_modules.each { module ->
+                        def libPath = project(':GradleTest').getProjectDir().absolutePath
+                        libPath += "/../../third-party/opencv_android/sdk/native/libs/"
+                        libPath += targetAbi
+                        libPath += "/libopencv_"
+                        libPath += module + ".a"
+                        //println libPath
+                        ldLibs += libPath
+                    }
+                    opencv_third_parties.each { module ->
+                        def libPath = project(':GradleTest').getProjectDir().absolutePath
+                        libPath += "/../../third-party/opencv_android/sdk/native/3rdparty/libs/"
+                        libPath += targetAbi
+                        libPath += "/"
+                        libPath += module + ".a"
+                        //println libPath
+                        ldLibs += libPath
+                    }
+                }
+            }
+
+        }
+    }
+
+    // You can modify the NDK configuration for each variant.
+    components.android {
+        binaries.afterEach { binary ->
+            binary.mergedNdkConfig.cppFlags.add(
+                    "-DVARIANT=\"" + binary.name + "\"")
+        }
+    }
+
+    // Configures source set directory.
+    android.sources {
+        test {
+            java {
+                source {
+                    srcDirs += 'src/test/java'
+                }
+            }
+            assets {
+                source {
+                    srcDirs += '../../assets/'
+                }
+            }
+        }
+        androidTest {
+            java {
+                source {
+                    srcDirs += 'src/instrumentTest/java'
+                }
+            }
+            res {
+                source {
+                    srcDirs += 'src/instrumentTest/res'
+                }
+            }
+        }
+
+        main {
+            java {
+                source {
+                    srcDirs += 'src/main/java'
+                }
+            }
+            assets {
+                source {
+                    srcDirs += '../../assets/'
+                }
+            }
+            jni {
+                source {
+                    srcDirs += '../../native/'
+                    exclude '**/*Test*'
+                    srcDirs += 'src/main/jni'
+                }
+            }
+        }
+    }
+}
+dependencies {
+    compile fileTree(dir: 'libs', include: ['*.jar'])
+    testCompile 'junit:junit:4.12'
+    // Set this dependency if you want to use Mockito
+    //testCompile 'org.mockito:mockito-core:1.10.19'
+    // Set this dependency if you want to use Hamcrest matching
+    testCompile 'org.hamcrest:hamcrest-library:1.3'
+    compile 'com.android.support:appcompat-v7:23.1.1'
+    compile 'com.android.support:design:23.1.1'
+}
+
+

@@ -1,0 +1,3 @@
+[submodule "third-party/opencv_android"]
+	path = third-party/opencv_android
+	url = https://github.com/fcoulombe/opencv_android.git
